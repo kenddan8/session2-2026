@@ -33,6 +33,7 @@ section {
 
 .add-item-section form {
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
   margin-top: 10px;
 }
@@ -58,6 +59,10 @@ button:hover {
   background-color: #21a1c9;
 }
 
+.items-section {
+  background-color: #ff69b4;
+}
+
 ul {
   list-style-type: none;
   padding: 0;
@@ -65,11 +70,12 @@ ul {
 
 li {
   padding: 10px;
-  border-bottom: 1px solid #ddd;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.2);
   text-align: left;
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
+  gap: 12px;
 }
 
 li:last-child {
@@ -81,7 +87,6 @@ li:last-child {
   color: white;
   padding: 6px 12px;
   font-size: 0.8rem;
-  margin-left: 10px;
 }
 
 .delete-btn:hover {
@@ -91,4 +96,88 @@ li:last-child {
 .error {
   color: #d32f2f;
   font-weight: bold;
+}
+
+.item-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.item-title {
+  color: #111;
+  font-weight: 600;
+}
+
+.item-timestamp {
+  color: #222;
+  font-size: 0.85rem;
+}
+
+.item-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.edit-btn {
+  background-color: #ffffff;
+  color: #111;
+  padding: 6px 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.edit-btn:hover {
+  background-color: #ececec;
+}
+
+.save-btn {
+  background-color: #2e7d32;
+  color: #fff;
+  padding: 6px 10px;
+}
+
+.save-btn:hover {
+  background-color: #1b5e20;
+}
+
+.cancel-btn {
+  background-color: #6c757d;
+  color: #fff;
+  padding: 6px 10px;
+}
+
+.cancel-btn:hover {
+  background-color: #545b62;
+}
+
+.clear-btn {
+  background-color: #8b1e3f;
+  color: #fff;
+}
+
+.clear-btn:hover {
+  background-color: #6f1832;
+}
+
+.edit-input {
+  width: 100%;
+}
+
+@media (max-width: 640px) {
+  .App {
+    padding: 12px;
+  }
+
+  li {
+    flex-direction: column;
+  }
+
+  .item-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
 }

@@ -35,6 +35,25 @@ describe('API Endpoints', () => {
       expect(item).toHaveProperty('name');
       expect(item).toHaveProperty('created_at');
     });
+
+    it('should return items in ascending order by timestamp and id', async () => {
+      const response = await request(app).get('/api/items');
+
+      expect(response.status).toBe(200);
+
+      const sortedItems = [...response.body].sort((leftItem, rightItem) => {
+        const leftTime = new Date(leftItem.created_at).getTime();
+        const rightTime = new Date(rightItem.created_at).getTime();
+
+        if (leftTime === rightTime) {
+          return leftItem.id - rightItem.id;
+        }
+
+        return leftTime - rightTime;
+      });
+
+      expect(response.body).toEqual(sortedItems);
+    });
   });
 
   describe('POST /api/items', () => {
@@ -97,6 +116,60 @@ describe('API Endpoints', () => {
       const response = await request(app).delete('/api/items/abc');
       expect(response.status).toBe(400);
       expect(response.body).toHaveProperty('error', 'Valid item ID is required');
+    });
+  });
+
+  describe('PUT /api/items/:id', () => {
+    it('should update an existing item name', async () => {
+      const item = await createItem('Initial Name');
+
+      const updateResponse = await request(app)
+        .put(`/api/items/${item.id}`)
+        .send({ name: 'Updated Name' })
+        .set('Accept', 'application/json');
+
+      expect(updateResponse.status).toBe(200);
+      expect(updateResponse.body).toHaveProperty('id', item.id);
+      expect(updateResponse.body).toHaveProperty('name', 'Updated Name');
+      expect(updateResponse.body).toHaveProperty('created_at', item.created_at);
+    });
+
+    it('should return 400 when updated name is empty', async () => {
+      const item = await createItem('Name To Update');
+
+      const response = await request(app)
+        .put(`/api/items/${item.id}`)
+        .send({ name: '   ' })
+        .set('Accept', 'application/json');
+
+      expect(response.status).toBe(400);
+      expect(response.body).toHaveProperty('error', 'Item name is required');
+    });
+
+    it('should return 404 when updating an unknown item', async () => {
+      const response = await request(app)
+        .put('/api/items/999999')
+        .send({ name: 'Updated Name' })
+        .set('Accept', 'application/json');
+
+      expect(response.status).toBe(404);
+      expect(response.body).toHaveProperty('error', 'Item not found');
+    });
+  });
+
+  describe('DELETE /api/items', () => {
+    it('should clear all items', async () => {
+      await createItem('Item 1');
+      await createItem('Item 2');
+
+      const clearResponse = await request(app).delete('/api/items');
+      expect(clearResponse.status).toBe(200);
+      expect(clearResponse.body).toHaveProperty('message', 'All items cleared successfully');
+      expect(clearResponse.body).toHaveProperty('deletedCount');
+
+      const listResponse = await request(app).get('/api/items');
+      expect(listResponse.status).toBe(200);
+      expect(listResponse.body).toEqual([]);
     });
   });
 });

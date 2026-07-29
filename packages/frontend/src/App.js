@@ -1,11 +1,41 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
 
+const formatTimestamp = (timestampValue) => {
+  const dateValue = new Date(timestampValue);
+  if (Number.isNaN(dateValue.getTime())) {
+    return '';
+  }
+
+  const timeFormatter = new Intl.DateTimeFormat('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  });
+
+  return timeFormatter.format(dateValue).toLowerCase();
+};
+
+const sortItemsAscending = (items) => {
+  return [...items].sort((leftItem, rightItem) => {
+    const leftTime = new Date(leftItem.created_at).getTime();
+    const rightTime = new Date(rightItem.created_at).getTime();
+
+    if (leftTime === rightTime) {
+      return leftItem.id - rightItem.id;
+    }
+
+    return leftTime - rightTime;
+  });
+};
+
 function App() {
-  const [data, setData] = useState([]);
+  const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [newItem, setNewItem] = useState('');
+  const [editingItemId, setEditingItemId] = useState(null);
+  const [editingItemName, setEditingItemName] = useState('');
 
   useEffect(() => {
     fetchData();
@@ -19,7 +49,7 @@ function App() {
         throw new Error('Network response was not ok');
       }
       const result = await response.json();
-      setData(result);
+      setItems(sortItemsAscending(result));
       setError(null);
     } catch (err) {
       setError('Failed to fetch data: ' + err.message);
@@ -47,8 +77,9 @@ function App() {
       }
 
       const result = await response.json();
-      setData([...data, result]);
+      setItems((currentItems) => sortItemsAscending([...currentItems, result]));
       setNewItem('');
+      setError(null);
     } catch (err) {
       setError('Error adding item: ' + err.message);
       console.error('Error adding item:', err);
@@ -65,11 +96,73 @@ function App() {
         throw new Error('Failed to delete item');
       }
 
-      setData(data.filter(item => item.id !== itemId));
+      setItems((currentItems) => currentItems.filter((item) => item.id !== itemId));
       setError(null);
     } catch (err) {
       setError('Error deleting item: ' + err.message);
       console.error('Error deleting item:', err);
+    }
+  };
+
+  const beginEditingItem = (item) => {
+    setEditingItemId(item.id);
+    setEditingItemName(item.name);
+  };
+
+  const cancelEditingItem = () => {
+    setEditingItemId(null);
+    setEditingItemName('');
+  };
+
+  const handleSaveItemTitle = async (itemId) => {
+    if (!editingItemName.trim()) {
+      setError('Item title cannot be empty');
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/items/${itemId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name: editingItemName.trim() }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update item');
+      }
+
+      const updatedItem = await response.json();
+      setItems((currentItems) =>
+        sortItemsAscending(
+          currentItems.map((item) => (item.id === itemId ? updatedItem : item))
+        )
+      );
+      cancelEditingItem();
+      setError(null);
+    } catch (err) {
+      setError('Error updating item: ' + err.message);
+      console.error('Error updating item:', err);
+    }
+  };
+
+  const handleClearAllItems = async () => {
+    try {
+      const response = await fetch('/api/items', {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to clear items');
+      }
+
+      setItems([]);
+      cancelEditingItem();
+      setError(null);
+    } catch (err) {
+      setError('Error clearing items: ' + err.message);
+      console.error('Error clearing items:', err);
     }
   };
 
@@ -91,6 +184,9 @@ function App() {
               placeholder="Enter item name"
             />
             <button type="submit">Add Item</button>
+            <button type="button" className="clear-btn" onClick={handleClearAllItems}>
+              Clear
+            </button>
           </form>
         </section>
 
@@ -100,17 +196,72 @@ function App() {
           {error && <p className="error">{error}</p>}
           {!loading && !error && (
             <ul>
-              {data.length > 0 ? (
-                data.map((item) => (
+              {items.length > 0 ? (
+                items.map((item) => (
                   <li key={item.id}>
-                    <span>{item.name}</span>
-                    <button 
-                      onClick={() => handleDelete(item.id)}
-                      className="delete-btn"
-                      type="button"
-                    >
-                      Delete
-                    </button>
+                    <div className="item-content">
+                      {editingItemId === item.id ? (
+                        <input
+                          type="text"
+                          value={editingItemName}
+                          onChange={(event) => setEditingItemName(event.target.value)}
+                          aria-label="Edit item title"
+                          className="edit-input"
+                        />
+                      ) : (
+                        <>
+                          <span className="item-title">{item.name}</span>
+                          <span className="item-timestamp">{formatTimestamp(item.created_at)}</span>
+                        </>
+                      )}
+                    </div>
+                    <div className="item-actions">
+                      {editingItemId === item.id ? (
+                        <>
+                          <button
+                            onClick={() => handleSaveItemTitle(item.id)}
+                            className="save-btn"
+                            type="button"
+                          >
+                            Save
+                          </button>
+                          <button
+                            onClick={cancelEditingItem}
+                            className="cancel-btn"
+                            type="button"
+                          >
+                            Cancel
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          onClick={() => beginEditingItem(item)}
+                          className="edit-btn"
+                          type="button"
+                          aria-label={`Edit item ${item.name}`}
+                        >
+                          <svg
+                            viewBox="0 0 24 24"
+                            width="14"
+                            height="14"
+                            aria-hidden="true"
+                            focusable="false"
+                          >
+                            <path
+                              d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm17.71-10.04a1.003 1.003 0 0 0 0-1.42l-2.5-2.5a1.003 1.003 0 0 0-1.42 0l-1.96 1.96 3.75 3.75 2.13-2.79z"
+                              fill="currentColor"
+                            />
+                          </svg>
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleDelete(item.id)}
+                        className="delete-btn"
+                        type="button"
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </li>
                 ))
               ) : (

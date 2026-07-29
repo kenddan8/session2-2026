@@ -41,7 +41,9 @@ app.get('/', (req, res) => {
 // API Routes
 app.get('/api/items', (req, res) => {
   try {
-    const items = db.prepare('SELECT * FROM items ORDER BY created_at DESC').all();
+    const items = db
+      .prepare('SELECT * FROM items ORDER BY datetime(created_at) ASC, id ASC')
+      .all();
     res.json(items);
   } catch (error) {
     console.error('Error fetching items:', error);
@@ -65,6 +67,46 @@ app.post('/api/items', (req, res) => {
   } catch (error) {
     console.error('Error creating item:', error);
     res.status(500).json({ error: 'Failed to create item' });
+  }
+});
+
+app.put('/api/items/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name } = req.body;
+
+    if (!id || Number.isNaN(parseInt(id, 10))) {
+      return res.status(400).json({ error: 'Valid item ID is required' });
+    }
+
+    if (!name || typeof name !== 'string' || name.trim() === '') {
+      return res.status(400).json({ error: 'Item name is required' });
+    }
+
+    const existingItem = db.prepare('SELECT * FROM items WHERE id = ?').get(id);
+    if (!existingItem) {
+      return res.status(404).json({ error: 'Item not found' });
+    }
+
+    const updateStmt = db.prepare('UPDATE items SET name = ? WHERE id = ?');
+    updateStmt.run(name.trim(), id);
+
+    const updatedItem = db.prepare('SELECT * FROM items WHERE id = ?').get(id);
+    res.json(updatedItem);
+  } catch (error) {
+    console.error('Error updating item:', error);
+    res.status(500).json({ error: 'Failed to update item' });
+  }
+});
+
+app.delete('/api/items', (req, res) => {
+  try {
+    const clearItemsStatement = db.prepare('DELETE FROM items');
+    const result = clearItemsStatement.run();
+    res.json({ message: 'All items cleared successfully', deletedCount: result.changes });
+  } catch (error) {
+    console.error('Error clearing items:', error);
+    res.status(500).json({ error: 'Failed to clear items' });
   }
 });
 
